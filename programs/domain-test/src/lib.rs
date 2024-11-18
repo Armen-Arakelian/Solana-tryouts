@@ -26,14 +26,12 @@ mod domain_test {
         domain.name = name;
         domain.dom_type = domain_type;
 
-        msg!("Emitting DomainCreated event");
         emit_cpi!(DomainCreated {
             id: program_info.id,
             owner: domain.owner,
             name: domain.name.clone(),
             dom_type: domain.dom_type,
         });
-        msg!("DomainCreated event emitted");
 
         Ok(())
     }

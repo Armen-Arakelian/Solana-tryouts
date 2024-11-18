@@ -3,6 +3,8 @@ import { Program } from "@coral-xyz/anchor";
 import { Commitment, Connection, Message, PublicKey, Transaction } from "@solana/web3.js";
 import { DomainTest } from "../target/types/domain_test";
 import nacl from "tweetnacl";
+import * as fs from "fs";
+import { assert } from "chai";
 
 describe("domain-test", () => {
   const provider = anchor.AnchorProvider.env();
@@ -13,7 +15,34 @@ describe("domain-test", () => {
 
   const domainTest = anchor.workspace.DomainTest as Program<DomainTest>;
 
-  it("Is initialized!", async () => {
+  const programBuffer = fs.readFileSync("./target/deploy/your_program.so");
+
+  beforeEach(async () => {
+    
+  });
+
+  it("Initialize", async () => {
+    const [programInfoSingletonPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("program_info")],
+      domainTest.programId,
+    )
+
+    await domainTest.methods
+    .initialize()
+    .accounts({
+      programInfo: programInfoSingletonPDA,
+      payer: payer.publicKey,
+      systemProgram: anchor.web3.SystemProgram.programId,
+    })
+    .rpc();
+
+    const programInfoData = await domainTest.account.programInfo.fetch(programInfoSingletonPDA);
+
+    assert.isTrue(programInfoData.initialized);
+    assert.equal(programInfoData.id.toString(), "0");
+  });
+
+  it("general stuff", async () => {
     const [programInfoSingletonPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from("program_info")],
       domainTest.programId,
@@ -71,7 +100,7 @@ describe("domain-test", () => {
     await provider.connection.confirmTransaction(txHash);
 
     // Add a delay to allow time for the transaction to be processed
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    // await new Promise(resolve => setTimeout(resolve, 5000));
     
     const firstDomainData = await domainTest.account.domain.fetch(domainPDA);
     console.log("first domain data: ", firstDomainData);
