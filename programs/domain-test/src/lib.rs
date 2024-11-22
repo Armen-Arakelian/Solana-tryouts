@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("GsNNozDfJPnQNRHsDXZKcECg5yYrUna6Td8rYb1otJCu");
+declare_id!("ChToP5o1wF4MyEmVknLCsmroeaYprENKmPMbsKjdeB5h");
 
 #[program]
 mod domain_test {
@@ -64,14 +64,14 @@ impl ProgramInfo {
 
         Ok(())
     }
-    
+
 }
 
 #[account]
-pub struct Domain {            
-    pub owner: Pubkey,          
+pub struct Domain {
+    pub owner: Pubkey,
     pub name: String,
-    pub dom_type: u8,           
+    pub dom_type: u8,
 }
 
 impl Domain {
@@ -84,8 +84,8 @@ impl Domain {
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(
-        init, 
-        payer = payer, 
+        init,
+        payer = payer,
         space = 8 + ProgramInfo::INIT_SPACE,
         seeds = [b"program_info".as_ref()],
         bump
@@ -113,10 +113,10 @@ pub struct CreateDomain<'info> {
         seeds = [program_info.id.to_le_bytes().as_ref()],
         bump
     )]
-    pub domain: Account<'info, Domain>,  
+    pub domain: Account<'info, Domain>,
     #[account(mut)]
-    pub payer: Signer<'info>,    
-    pub owner: Signer<'info>,        
+    pub payer: Signer<'info>,
+    pub owner: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -148,7 +148,7 @@ struct DomainCreated {
     dom_type: u8,
 }
 
-#[event] 
+#[event]
 struct DomainUpdated {
     id: u64,
     dom_type: u8,

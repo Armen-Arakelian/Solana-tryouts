@@ -5,7 +5,7 @@
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.30.1",
+    "@coral-xyz/anchor": "https://github.com/ochaloup/anchor.git#ts-cp-event-parse",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {

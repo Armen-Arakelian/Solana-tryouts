@@ -1,10 +1,15 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
+import {BN, BorshEventCoder, Program} from "@coral-xyz/anchor";
 import { Commitment, Connection, Message, PublicKey, Transaction } from "@solana/web3.js";
 import { DomainTest } from "../target/types/domain_test";
 import nacl from "tweetnacl";
 import * as fs from "fs";
 import { assert } from "chai";
+import {program} from "@coral-xyz/anchor/dist/cjs/native/system";
+import {base64, bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import {parseCpiEvents} from "../utils/decoder";
+
+let coder: any;
 
 describe("domain-test", () => {
   const provider = anchor.AnchorProvider.env();
@@ -15,13 +20,8 @@ describe("domain-test", () => {
 
   const domainTest = anchor.workspace.DomainTest as Program<DomainTest>;
 
-  const programBuffer = fs.readFileSync("./target/deploy/your_program.so");
-
-  beforeEach(async () => {
-    
-  });
-
   it("Initialize", async () => {
+    console.log("program id: ", domainTest.programId.toBase58());
     const [programInfoSingletonPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from("program_info")],
       domainTest.programId,
@@ -49,16 +49,16 @@ describe("domain-test", () => {
     )
 
     const slot = await domainTest.provider.connection.getSlot();
-    const blockTime = await domainTest.provider.connection.getBlockTime(slot);
+    // const blockTime = await domainTest.provider.connection.getBlockTime(slot);
 
-    await domainTest.methods
-    .initialize()
-    .accounts({
-      programInfo: programInfoSingletonPDA,
-      payer: payer.publicKey,
-      systemProgram: anchor.web3.SystemProgram.programId,
-    })
-    .rpc();
+    // await domainTest.methods
+    // .initialize()
+    // .accounts({
+    //   programInfo: programInfoSingletonPDA,
+    //   payer: payer.publicKey,
+    //   systemProgram: anchor.web3.SystemProgram.programId,
+    // })
+    // .rpc();
 
     const programInfoData = await domainTest.account.programInfo.fetch(programInfoSingletonPDA);
     console.log("program info data: ", programInfoData);
@@ -101,17 +101,23 @@ describe("domain-test", () => {
 
     // Add a delay to allow time for the transaction to be processed
     // await new Promise(resolve => setTimeout(resolve, 5000));
-    
+
     const firstDomainData = await domainTest.account.domain.fetch(domainPDA);
     console.log("first domain data: ", firstDomainData);
 
-
+    await provider.connection.confirmTransaction(txHash, "confirmed");
+    const fullTx = await provider.connection.getTransaction(txHash, {
+        commitment: "confirmed",
+        });
     //events
-    const events = await getPastCPIEvents(domainTest, "DomainCreated");
+    const events = await parseCpiEvents(
+        fullTx,
+        domainTest,
+    );
 
     console.log("events=============================================", events);
     events.forEach((event) => {
-    if (event.name === "DomainCreated") {
+    if (event.name === "domainCreated") {
       // Access event data
       console.log(event.data);
       // Add your assertions here
@@ -120,68 +126,3 @@ describe("domain-test", () => {
   });
   });
 });
-
-
-async function getPastCPIEvents(
-  program: Program<DomainTest>,
-  eventName: string,
-  fromSignature?: string
-) {
-  const connection = new Connection(
-    program.provider.connection.rpcEndpoint,
-    'confirmed' as Commitment
-  );
-  const programId = program.programId;
-
-  const signatures = await connection.getSignaturesForAddress(
-    programId,
-    { until: fromSignature },
-    'confirmed'
-  );
-
-  console.log(`Found ${signatures.length} signatures for program ${programId.toBase58()}`);
-
-  const events = [];
-
-  for (const { signature } of signatures) {
-    console.log(`Processing signature: ${signature}`);
-    const tx = await connection.getParsedTransaction(signature, 'confirmed');
-
-    if (!tx?.meta?.innerInstructions) {
-      console.log(`No inner instructions found for signature: ${signature}`);
-      continue;
-    }
-
-    for (const innerInstructionSet of tx.meta.innerInstructions) {
-      for (const innerIx of innerInstructionSet.instructions) {
-        if (
-          'programId' in innerIx &&
-          new PublicKey(innerIx.programId).equals(programId)
-        ) {
-          console.log(`Found matching program ID: ${innerIx.programId}`);
-          if ('data' in innerIx && innerIx.data) {
-            try {
-              console.log(`Attempting to decode data: ${innerIx.data}`);
-              const event = program.coder.events.decode(innerIx.data);
-              console.log(`Decoded event:`, event);
-              if (event && (!eventName || event.name === eventName)) {
-                events.push({
-                  ...event.data,
-                  name: event.name,
-                  signature,
-                  slot: tx.slot,
-                });
-              }
-            } catch (e) {
-              console.error(`Error decoding event for signature ${signature}:`, e);
-            }
-          } else {
-            console.log(`No data found in instruction`);
-          }
-        }
-      }
-    }
-  }
-
-  return events;
-}
